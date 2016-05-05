@@ -1,0 +1,362 @@
+uLOG - micro logging library
+-----------------------------
+
+Often you need to follow program flow in a way or another, keeping track of
+variable contents, time needed to perform tasks, etc. Additionally you may
+want to enable/disable traces at will, or removing them altoghether from
+compiled program. Or you need to collect them in a file, instead to having
+them on console. But you don't want the hassle of an ipertrofic library, nor
+a complex environment to deal with.
+Welcome to uLOG.
+
+Install
+-------
+
+Simply:
+
+me@lab ~/p/ulog> make
+me@lab ~/p/ulog> sudo make install
+
+(you need root permission for the latter since require access to
+/usr/local/include). On some systems you may want to change
+install directory.
+
+Use
+---
+
+1) #include <ulog.h>
+2) put once in your program ULOG_DECL directive
+3) Use it
+
+Example (minimalistic)
+-----------------------
+
+#include <ulog.h>
+
+ULOG_DECL
+
+int main(int argc, char **argv) {
+	ULOG_ENABLE(ulog_output_stdout);
+	ULOG("Name of program is <%s>", argv[0]);
+}
+
+Compile and run it:
+
+me@lab ~/p/ulog/samples> gcc myfirstulog.c -o ulog
+me@lab ~/p/ulog/samples> ./ulog
+me@lab ~/p/ulog/samples> myfirstulog.c-main:7 <Name of program is ./ulog>
+
+Please note: 
+
+a) You don't need to put a newline at the end
+b) Whatever you can do with printf() you can do with uLOG
+c) Filename and position of ULOG is displayed
+
+Less minimalistic example
+--------------------------
+
+#include <ulog.h>
+
+ULOG_DECL
+
+int main(int argc, char **argv) {
+	ULOG_ENABLE(ulog_output_stdout);
+	ULOG("Name of program is <%s>", argv[0]);
+
+        ULOG("Before disable logging...");
+        ULOG_DISABLE();
+        ULOG("YOU DON'T SEE IT!!");
+
+        ULOG_FILE("/tmp/trace");
+        ULOG_FLAGS(ULOG_TIMEDENTRY);
+
+        ULOG_ENABLE(ulog_output_file);
+        ULOG("Goes into a file....");
+}
+
+Compile and run it:
+
+me@lab ~/p/ulog/samples> gcc mysecondulog.c -o ulog
+me@lab ~/p/ulog/samples> ./ulog 
+mysecondulog.c-main:8 <Name of program is <./ulog>>
+mysecondulog.c-main:10 <Before disable logging...>
+me@lab ~/p/ulog/samples> cat /tmp/trace
+Log started at: 2015-11-24 17:33:19 
+2015-11-24 17:33:19 mysecondulog.c-main:18 <Goes into a file....>
+
+Please note:
+a) you can programmatically disable/enable logging
+b) you can save to a file
+c) you can optionally have full timestamp of start/stop events
+
+Full time record example
+--------------------------
+
+In order to debug some kind of applications you must know, in
+addition to user-defined data, also when some event is occured.
+You can instruct uLOG to emit full timestamp on every ULOG()
+call, or in any case fine-tuning the output format of uLOG at
+will in this way:
+
+#include <ulog.h>
+
+ULOG_DECL
+
+int main(int argc, char **argv) {
+	ULOG_ENABLE(ulog_output_stdout);
+	ULOG("Name of program is <%s>", argv[0]);
+
+	ULOG_FORMAT("%t %f:%l <%v>\n");
+	ULOG("An event is occurred");
+	ULOG_FORMAT("%v\n");
+	ULOG("Trace output can be very terse also");
+}
+
+Compile and run it:
+
+me@lab ~/p/ulog/samples> gcc format.c -o ulog
+me@lab ~/p/ulog/samples> ./ulog
+format.c:7 <Name of program is <./ulog>>
+2016-5-3 16:11:5 format.c:10 <An event is occurred>
+Trace output can be very terse also
+
+Please note:
+a) You can decide both what and in which order display trace metadata
+b) You can disable output of anything but your stuff while keeping trace active
+
+Tracing utilities
+-----------------
+
+There are cases where tracing primitives defined so far are not
+sufficient of awkward to use. For instance imagine that you want to dump
+an array inside the traces. Given the trace primitives so far, you will
+need to write a loop and in general code exclusevely for trace management.
+Since this cumbersome, a special trace call is defined that does this
+kind of job.
+
+#include <ulog.h>
+
+ULOG_DECL
+
+char *arrayStrings[] = {
+        "First", "Second", "Third", "", "Fourth", "Fifth", NULL
+};
+char arrayBytes[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xBA, 0xBB, 0xE0 };
+
+int main(int argc, char **argv) {
+	ULOG_ENABLE(ulog_output_stdout);
+
+	ULOGA(arrayStrings, 0, 0);
+	ULOG_AFORMAT("char arrayBytes{", "", "0x%.2X", ", " , "};");
+	ULOGA(arrayBytes, sizeof(char), sizeof(arrayBytes)/sizeof(char));
+}
+
+Compile and run it:
+
+me@lab ~/p/ulog/samples> gcc array.c -o array
+me@lab ~/p/ulog/samples> ./array
+array.c:13 <[First,Second,Third,,Fourth,Fifth,]>
+array.c:15 <char arrayBytes{0xDE, 0xAD, 0xBE, 0xEF, 0xBA, 0xBB, 0xE0};>
+
+Please note:
+a) You can dump array of strings (0 in second parameter) or integral
+   types char (sizeof(char)), short (sizeof(short)) or int (sizeof(int)),
+   signed or unsigned as you wish.
+b) Arrays may be variable-length (0 in third parameter) or fixed length
+   (any other value).
+c) You can setup fancy output format with ULOG_AFORMAT, which requires
+   four arguments: prefix, left-prefix, value, right-prefix and end.
+   ULOGA() call will output array data as follows: 
+   <prefix, [left-prefix value right-prefix]* end>
+
+Support of modules or libraries
+--------------------------------
+
+You have a large, complex program full of different libraries and
+modules and you will overwhelmed by traces. What you really need is
+selectevely enable some traces while keeping other module traces disabled.
+What can be done? Use trace module flags. 
+The example below define a process that starts silently with tracing
+disabled. On receiving SIGUSR1 traces are toggled (if disabled are enabled
+and vice-versa). On receiving SIGUSR2 you toggle tracing of main module
+versus an external one. Since modules are defined as a bitmask, you can
+have up to 31 different user-defined modules (module 1 is reserved for
+the main module, implicitely defined on uLOG default usage).
+You can define modules on a per-file basis, i.e., each module must reside
+in one or more files and you cannot have two ULOG() calls in the same file
+that belongs to different modules.
+
+File:main.c
+--------------------
+
+#include <stdio.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#include <ulog.h>
+#include "lib1.h"
+
+int trace_flag=0;
+int level_flag=0;
+
+ULOG_DECL
+
+void sig_handler(int signo)
+{
+	switch (signo) {
+	case SIGUSR1:
+		trace_flag = !trace_flag;
+		if (trace_flag) {
+			ulog_flags_t flags = { .timedentry = 1 };
+			ULOG_FLAGS(flags);
+			ULOG_FORMAT("%t %m %f:%l <%v>\n");
+			ULOG_ENABLE(ulog_output_stderr);
+		} else
+			ULOG_DISABLE();
+		break;
+	case SIGUSR2:
+		level_flag = !level_flag;
+		if (level_flag)
+			ULOG_LEVEL_SET(LIB1_ID);
+		else
+			ULOG_LEVEL_SET(ULOG_TRACE_MAIN);
+		break;
+	case SIGINT:
+		ULOG_DISABLE();
+		break;
+	}
+}
+
+int main(short argc, char *argv[]) {
+	int i = 0;
+
+	if (signal(SIGUSR1, sig_handler) == SIG_ERR)
+		perror("can't catch SIGUSR1");
+
+	if (signal(SIGUSR2, sig_handler) == SIG_ERR)
+		perror("can't catch SIGUSR2");
+
+	if (signal(SIGINT, sig_handler) == SIG_ERR)
+		perror("can't catch SIGINT");
+
+	while(1) {
+		sleep(4);
+		ULOG("call lib function");
+		lib1_call1(i++);
+	}
+
+	exit(0);
+}
+
+File: lib1.c
+------------------
+
+#include <ulog.h>
+
+#include "lib1.h"
+
+ulog_module_t seclib = { "LIB1", LIB1_ID };
+
+ULOG_MODULE_DECL(&seclib);  /* This map the current file <--> trace module.
+                               You can associate multiple files with the same
+                               trace module so you can logically split things
+                               as you wish.                                   */
+
+void lib1_call1(int input)
+{
+	/* Simplest use of tracemodule is hardcoded stuff,
+	   i.e., use directly hardcoded bitmaps to enable
+	   or disable desired module. We do this in this
+	   function.                                      */
+
+	ULOG("lib1_call1(%d)", input);
+}
+
+Compile and run it:
+
+me@lab ~/p/ulog/samples> gcc -c main.c lib1.c
+me@lab ~/p/ulog/samples> gcc main.o lib1.o -o signal
+me@lab ~/p/ulog/samples> ./signal
+Log started at: 2016-5-5 15:36:0
+2016-5-5 15:36:0 MAIN main.c:54 <call lib function>
+2016-5-5 15:36:4 MAIN main.c:54 <call lib function>
+Log ended at: 2016-5-5 15:36:7
+Log started at: 2016-5-5 15:36:34
+2016-5-5 15:36:34 MAIN main.c:54 <call lib function>
+2016-5-5 15:36:38 MAIN main.c:54 <call lib function>
+2016-5-5 15:36:38 LIB1 lib1.c:24 <lib1_call1(19)>
+2016-5-5 15:36:42 LIB1 lib1.c:24 <lib1_call1(20)>
+2016-5-5 15:36:46 LIB1 lib1.c:24 <lib1_call1(21)>
+2016-5-5 15:36:47 MAIN main.c:54 <call lib function>
+2016-5-5 15:36:51 MAIN main.c:54 <call lib function>
+2016-5-5 15:36:55 MAIN main.c:54 <call lib function>
+Log ended at: 2016-5-5 15:36:57
+
+On another terminal:
+
+me@lab ~/p/ulog> ps -e | grep signal
+ 7778 pts/0    00:00:00 signal
+me@lab ~/p/ulog> date
+Thu May  5 15:35:53 CEST 2016
+me@lab ~/p/ulog> kill -USR1 7778
+me@lab ~/p/ulog> date
+Thu May  5 15:36:29 CEST 2016
+me@lab ~/p/ulog> kill -USR1 7778
+me@lab ~/p/ulog> kill -USR2 7778
+me@lab ~/p/ulog> date
+Thu May  5 15:36:45 CEST 2016
+me@lab ~/p/ulog> kill -USR2 7778
+me@lab ~/p/ulog> date
+Thu May  5 15:36:53 CEST 2016
+me@lab ~/p/ulog> kill -USR1 7778
+me@lab ~/p/ulog> kill -9 7778
+
+Please note:
+a) You can setup uLOG to emit module name in traces, so you can easily
+   search in tracefile for specific module data if needed
+b) You have full run-time control of uLOG stuff
+
+Other uses
+----------
+
+Inline code vs library
+----------------------
+
+In all examples above we have used the default mode of uLOG library, 
+inlined code, but several different uses are available.
+As default all uLOG calls are inlined. That is, the library defines core
+uLOG function as static inline, so the compiler don't emit function call
+code for each ULOGXXX() call. This improve performance at cost of augmenting
+executable file size, since every uLOG call add some code, much more than
+a standard library function call template.
+
+In some environments, most notably IoT stuff with tight memory constraints,
+this behaviour is not acceptable while the standard library interface is
+welcomed.
+You can switch uLOG library mode at compile time including uloglib.h in
+lieu of ulog.h inside your source code. Remember to add the library
+libulog.a to the linker!
+
+Further customization
+---------------------
+
+In some IoT environments some C standard library call are defined, some
+others not. Since IoT platforms differs a lot each other, we cannot
+anticipate individual needs so it is possible to remove calls to
+some standard C lib functions, disabling some uLOG features selectevely.
+For instance some IoT boards does not have an RTC, so we may want to
+avoid to call time() functions, especially if they aren't defined.
+The uLOG library sources split the implementation in two files, ulog.h
+and ulog_internals.h (also) for this reason.
+Without cluttering compiler command line with def/undef user can 
+add some definitions in ulog.h file, for instance:
+
+ULOG_REMOVE_TIMEDENTRY   remove call to time(), localtime() and disable
+                         ULOG_FLAGS() with timed entry
+ULOG_REMOVE_FILEOUTPUT   remove call to fopen(), fclose() and 
+                         disable trace file output
+
+At a minimum the target system that run uLOG code must support
+fprintf() and fputc() in addition to the support of variable input
+va_start() and va_arg().
