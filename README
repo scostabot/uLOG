@@ -1,4 +1,4 @@
-uLOG - micro logging library
+#uLOG - micro logging library
 -----------------------------
 
 Often you need to follow program flow in a way or another, keeping track of
