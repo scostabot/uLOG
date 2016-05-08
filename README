@@ -91,7 +91,7 @@ mysecondulog.c-main:8 <Name of program is <./ulog>>
 mysecondulog.c-main:10 <Before disable logging...>
 me@lab ~/p/ulog/samples> cat /tmp/trace
 Log started at: 2015-11-24 17:33:19 
-2015-11-24 17:33:19 mysecondulog.c-main:18 <Goes into a file....>
+17:33:19 mysecondulog.c-main:18 <Goes into a file....>
 
 Please note:
 a) you can programmatically disable/enable logging
