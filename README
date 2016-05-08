@@ -1,4 +1,4 @@
-#uLOG - micro logging library
+uLOG - micro logging library
 -----------------------------
 
 Often you need to follow program flow in a way or another, keeping track of
@@ -8,6 +8,15 @@ compiled program. Or you need to collect them in a file, instead to having
 them on console. But you don't want the hassle of an ipertrofic library, nor
 a complex environment to deal with.
 Welcome to uLOG.
+
+Licensing & Support
+-------------------
+uLOG is doubly licensed BSD 3-clauses/LGPL2.1, so you can deploy it almost
+anywhere without hassles.
+uLOG support basically any C compiler that allows variadic input for both
+preprocessor and code, plus the presence of an hadful of standard C library
+calls (see also Further customization paragraph). Gcc 3.4 and LLVM/clang
+were actively tested and supported.
 
 Install
 -------
