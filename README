@@ -7,14 +7,15 @@ want to enable/disable traces at will, or removing them altoghether from
 compiled program. Or you need to collect them in a file, instead to having
 them on console. But you don't want the hassle of an ipertrofic library, nor
 a complex environment to deal with.
-Welcome to uLOG.
+Welcome to uLOG (stands for microLOG, where u is the approximation of the
+greek letter mu).
 
 Licensing & Support
 -------------------
 uLOG is doubly licensed BSD 3-clauses/LGPL2.1, so you can deploy it almost
 anywhere without hassles.
 uLOG support basically any C compiler that allows variadic input for both
-preprocessor and code, plus the presence of an hadful of standard C library
+preprocessor and code, plus the presence of an handful of standard C library
 calls (see also Further customization paragraph). Gcc 3.4 and LLVM/clang
 were actively tested and supported.
 
@@ -91,7 +92,7 @@ mysecondulog.c-main:8 <Name of program is <./ulog>>
 mysecondulog.c-main:10 <Before disable logging...>
 me@lab ~/p/ulog/samples> cat /tmp/trace
 Log started at: 2015-11-24 17:33:19 
-17:33:19 mysecondulog.c-main:18 <Goes into a file....>
+mysecondulog.c-main:18 <Goes into a file....>
 
 Please note:
 a) you can programmatically disable/enable logging
